@@ -7,55 +7,83 @@ import (
 )
 
 const (
-	InitUSDT              = 30
-	InitToken             = 1_000_000_000
-	TargetUSDT            = 115
-	EarnBound             = 1.0
-	LoseBound             = -0.5
-	MaxRound              = 10000
+	InitUSDT        = 30_000_000_000
+	InitToken       = 1_000_000_000_000_000_000
+	TargetUSDT      = 115_000_000_000
+	PurchaseUAmount = 500_000_000
+
+	EarnBound = 100
+	LoseBound = -50
+
+	MaxRound = 10000
+
 	StartSell             = 5
-	SellDirectProbability = 0.1
-	SellDirectEarn        = 0.1
-	Distribution          = 1
-	ProbabilityMoveBound  = 0.5
+	SellDirectProbability = 0.2
+	SellDirectEarn        = 20
+
+	Distribution         = 1
+	ProbabilityMoveBound = 0.5
 )
 
-// const initUSDT =
 func main() {
-	var holders []float64
-	var result []float64
+	success := 0
+	failed := 0
+	no_result := 0
 
-	usdt := float64(InitUSDT)
-	token := float64(InitToken)
-	AMMK = big.NewFloat(usdt).Mul(big.NewFloat(usdt), big.NewFloat(token))
-	var curve uint8 = AMM
-	//ConstBasicTokenPrice =
-	//LineSlop int64
-	currentPrice, _ := Curve(AMM, big.NewFloat(token)).Float64()
+	totalSuccesRound := 0
+	toTalFailRound := 0
+
+	for i := 0; i < 1000; i++ {
+		round, result := test()
+		if result {
+			success++
+			totalSuccesRound += round
+		} else if round != MaxRound {
+			failed++
+			toTalFailRound += round
+		} else {
+			no_result++
+		}
+	}
+	fmt.Printf("sucess:%d,avg round:%d\nfail:%d,avg round:%d\nnoresult:%d", success, totalSuccesRound/success, failed, toTalFailRound/failed, no_result)
+}
+
+func test() (int, bool) {
+	var holders []int64
+	var result []int64
+
+	USDT = InitUSDT
+	Token = InitToken
+	AMMK = big.NewInt(0).Mul(big.NewInt(USDT), big.NewInt(Token))
 
 	for i := 0; i < MaxRound; i++ {
-		var buyPrice float64
 		var stop bool
-		buyPrice, currentPrice, usdt, token = Buy(currentPrice, curve, usdt, token, Distribution, ProbabilityMoveBound)
-		if usdt > TargetUSDT {
-			fmt.Printf("Sucessfull\nusdt: %f\ntoken:%f\nresult:%v\nholders:%v\n", usdt, token, result, holders)
-
+		_token := Buy(PurchaseUAmount, Distribution, ProbabilityMoveBound)
+		if USDT > TargetUSDT {
+			fmt.Printf("Sucessfull:%d, usdt: %d,token:%d,result:%d,holders:%d\n", i, USDT, Token, len(result), len(holders))
+			return i, true
 		}
-		holders = append(holders, buyPrice)
 		if i < StartSell {
+			holders = append(holders, _token)
 			continue
 		} else {
 			r := rand.Float64()
-			if (currentPrice-buyPrice) > buyPrice*SellDirectEarn && r < SellDirectProbability {
-				currentPrice, usdt, token = DirectSell(usdt, token, currentPrice, curve)
+			earnedU := GetSellU(_token) - PurchaseUAmount
+			if earnedU > SellDirectEarn*PurchaseUAmount/100 && r < SellDirectProbability {
+				SellDirectly(_token)
+				result = append(result, earnedU)
 			} else {
-				holders, stop, currentPrice = Sell(usdt, token, holders, currentPrice, &result, curve, EarnBound, LoseBound)
+				holders = append(holders, _token)
+				stop = Sell(PurchaseUAmount, &holders, &result, EarnBound, LoseBound)
 				if stop {
-					fmt.Printf("Faield\nusdt: %f\ntoken:%f\nresult:%v\nholders:%v\n", usdt, token, result, holders)
-					return
+
+					fmt.Printf("Faield:%d,usdt: %d,token:%d,result:%v,holders:%v\n", i, USDT, Token, len(result), len(holders))
+					return i, false
 				}
 			}
 		}
+		//fmt.Printf("round %d,usdt: %d,token:%d,result:%d,holders:%d\n", i, USDT, Token, len(result), len(holders))
 	}
-	fmt.Printf("No Result\nusdt: %f\ntoken:%f\nresult:%v\nholders:%v\n", usdt, token, result, holders)
+	fmt.Printf("No Result: usdt: %d,token:%d,result:%v,holders:%v\n", USDT, Token, len(result), len(holders))
+	return MaxRound, false
 }
